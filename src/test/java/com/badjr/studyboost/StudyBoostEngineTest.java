@@ -32,7 +32,7 @@ public class StudyBoostEngineTest {
 		assertEquals(3, studyBoostEngine.getInterchanges().size());
 		for (Interchange interchange : studyBoostEngine.getInterchanges()) {
 			assertEquals(3, interchange.getAnswerChoices().size());
-			assertEquals(interchange.getAnswer(), ((List<Answer>) interchange.getAnswerChoices()).get(interchange.getCorrectAnswerIndex()));
+			assertEquals(interchange.getAnswer(), interchange.getAnswerChoices().get(interchange.getCorrectAnswerIndex()));
 		}
 
 
@@ -170,7 +170,7 @@ public class StudyBoostEngineTest {
 
 		studyBoostEngine.loadStudySession(interchanges, additionalAnswerChoices);
 		for (Interchange interchange : studyBoostEngine.getInterchanges()) {
-			assertEquals(interchange.getAnswer(), ((List<Answer>) interchange.getAnswerChoices()).get(interchange.getCorrectAnswerIndex()));
+			assertEquals(interchange.getAnswer(), interchange.getAnswerChoices().get(interchange.getCorrectAnswerIndex()));
 		}
 
 	}

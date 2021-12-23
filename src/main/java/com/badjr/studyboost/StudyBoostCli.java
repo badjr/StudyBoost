@@ -87,7 +87,7 @@ public class StudyBoostCli {
 	private void displayNextInterchange(Interchange interchange) {
 		System.out.println(interchange.getQuestion().getQuestionText());
 
-		List<Answer> answerChoices = (List<Answer>) interchange.getAnswerChoices();
+		List<Answer> answerChoices = interchange.getAnswerChoices();
 		for (int i = 0; i < answerChoices.size(); i++) {
 			System.out.println(i + ". " + answerChoices.get(i).getAnswerText());
 		}
