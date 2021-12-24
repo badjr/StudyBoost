@@ -5,6 +5,14 @@ import java.util.Objects;
 public class Answer {
 	private String answerText;
 
+	public Answer() {
+
+	}
+
+	public Answer(String answerText) {
+		this.answerText = answerText;
+	}
+
 	public String getAnswerText() {
 		return answerText;
 	}

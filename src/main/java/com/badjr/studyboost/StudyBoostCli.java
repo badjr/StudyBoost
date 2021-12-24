@@ -1,27 +1,32 @@
 package com.badjr.studyboost;
 
+import com.badjr.studyboost.dao.Dao;
+import com.badjr.studyboost.dao.InterchangeFlatFileDao;
+import com.badjr.studyboost.dao.InterchangeInMemoryDao;
 import com.badjr.studyboost.engine.StudyBoostEngine;
+import com.badjr.studyboost.engine.StudyEngineConfiguration;
 import com.badjr.studyboost.model.Answer;
 import com.badjr.studyboost.model.Interchange;
 
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
 public class StudyBoostCli {
 
-	private List<Interchange> interchanges;
-	private List<Answer> additionalAnswerChoices;
+	private Dao<Interchange> interchangeDao;
 	private StudyBoostEngine studyBoostEngine;
+	private StudyEngineConfiguration studyEngineConfiguration;
 
-	public StudyBoostCli(List<Interchange> interchanges, StudyBoostEngine studyBoostEngine) {
-		this.interchanges = interchanges;
-		this.studyBoostEngine = studyBoostEngine;
-	}
-
-	public StudyBoostCli(List<Interchange> interchanges, List<Answer> additionalAnswerChoices, StudyBoostEngine studyBoostEngine) {
-		this.interchanges = interchanges;
-		this.additionalAnswerChoices = additionalAnswerChoices;
-		this.studyBoostEngine = studyBoostEngine;
+	public StudyBoostCli(StudyEngineConfiguration studyEngineConfiguration) {
+		studyBoostEngine = new StudyBoostEngine();
+		this.studyEngineConfiguration = studyEngineConfiguration;
+		this.interchangeDao = studyEngineConfiguration.getInterchangeDao();
 	}
 
 	public void start() {
@@ -35,8 +40,13 @@ public class StudyBoostCli {
 			switch (userInput) {
 				case "n" -> {
 					System.out.println("\nStarting new study session.\n");
-					studyBoostEngine.loadStudySession(interchanges, additionalAnswerChoices);
+					studyBoostEngine.loadStudySession(studyEngineConfiguration);
+					studyBoostEngine.shuffleInterchanges();
 					startStudySession(scanner, studyBoostEngine);
+				}
+				case "s" -> {
+					System.out.println("\nEnter path(s) to use for input files.\n");
+					setUpInputFiles(scanner);
 				}
 				case "q" -> {
 					scanner.close();
@@ -76,10 +86,47 @@ public class StudyBoostCli {
 		}
 	}
 
+	private void setUpInputFiles(Scanner scanner) {
+		List<String> paths = new ArrayList<>();
+
+		String userLine = scanner.nextLine();
+		String[] userInputtedPaths = userLine.split("\s+");
+		for (String userInputtedPath : userInputtedPaths) {
+			try {
+				Path path = Paths.get(userInputtedPath);
+				if (Files.exists(path)) {
+					paths.add(path.toString());
+				}
+				else {
+					System.out.println("Could not find file: " + userInputtedPath);
+				}
+			}
+			catch (InvalidPathException e) {
+				System.out.println("Invalid path: " + userInputtedPath + "; " + e.getMessage());
+			}
+		}
+
+		if (!paths.isEmpty()) {
+			interchangeDao = new InterchangeFlatFileDao(paths.toArray(new String[0]));
+		}
+		else {
+			interchangeDao = new InterchangeInMemoryDao();
+		}
+		studyEngineConfiguration.setInterchangeDao(interchangeDao);
+	}
+
 	private void displayMainPrompt() {
+		if (interchangeDao instanceof InterchangeFlatFileDao) {
+			String[] pathToFiles = ((InterchangeFlatFileDao) interchangeDao).getPathToFiles();
+			System.out.println("Using input file" + (pathToFiles.length > 1 ? "s" : "") + ": " + Arrays.toString(pathToFiles));
+		}
+		else if (interchangeDao instanceof InterchangeInMemoryDao) {
+			System.out.println("Using default questions.");
+		}
 		System.out.println(
-                """
+				"""
 				(n) Start New Study Session
+				(s) Select Input File(s)
 				(q) Quit
 				""");
 	}

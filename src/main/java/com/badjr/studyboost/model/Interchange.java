@@ -15,6 +15,12 @@ public class Interchange {
 		answerChoices = new ArrayList<>();
 	}
 
+	public Interchange(Question question, Answer answer) {
+		this();
+		this.question = question;
+		this.answer = answer;
+	}
+
 	public Question getQuestion() {
 		return question;
 	}

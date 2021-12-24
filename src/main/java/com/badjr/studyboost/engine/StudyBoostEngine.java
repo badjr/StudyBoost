@@ -12,8 +12,10 @@ import java.util.stream.Collectors;
 
 public class StudyBoostEngine {
 	private List<Interchange> interchanges;
+	private List<Answer> additionalAnswerOptions;
 	private Iterator<Interchange> iterator;
 	private Interchange currentInterchange;
+	private StudyEngineConfiguration studyEngineConfiguration;
 
 	public StudyBoostEngine() {
 		interchanges = new ArrayList<>();
@@ -23,46 +25,44 @@ public class StudyBoostEngine {
 		return interchanges;
 	}
 
-	public void loadStudySession(List<Interchange> interchanges) {
-		this.interchanges = interchanges;
-		populateAnswerChoicesRandomly(interchanges);
+	public void loadStudySession(StudyEngineConfiguration studyEngineConfiguration) {
+		this.studyEngineConfiguration = studyEngineConfiguration;
+		interchanges = studyEngineConfiguration.getInterchangeDao().getAll();
+		if (studyEngineConfiguration.getAdditionalAnswerOptionsDao() != null) {
+			additionalAnswerOptions = studyEngineConfiguration.getAdditionalAnswerOptionsDao().getAll();
+		}
+		populateAnswerChoices(interchanges, additionalAnswerOptions);
 		currentInterchange = getNextInterchange();
 	}
 
-	public void loadStudySession(List<Interchange> interchanges, List<Answer> additionalAnswerChoices) {
-		this.interchanges = interchanges;
-		populateAnswerChoicesRandomly(interchanges, additionalAnswerChoices);
-		currentInterchange = getNextInterchange();
-	}
-
-	private void populateAnswerChoicesRandomly(List<Interchange> interchanges) {
-		populateAnswerChoices(interchanges);
-	}
-
-	private void populateAnswerChoicesRandomly(List<Interchange> interchanges, List<Answer> additionalAnswerChoices) {
+	private void populateAnswerChoices(List<Interchange> interchanges, List<Answer> additionalAnswerChoices) {
 		List<Answer> answerChoices = interchanges
 				.stream()
-				.map(Interchange::getAnswer)
+				.map(this::getAnswer)
 				.collect(Collectors.toList());
 
-		answerChoices.addAll(additionalAnswerChoices);
+		if (additionalAnswerChoices != null) {
+			answerChoices.addAll(additionalAnswerChoices);
+		}
 
-		populateAnswerChoices(interchanges, answerChoices);
+		populateAnswerChoicesRandomly(interchanges, answerChoices);
 	}
 
-	private void populateAnswerChoices(List<Interchange> interchanges) {
-		List<Answer> answerChoices = interchanges
-				.stream()
-				.map(Interchange::getAnswer)
-				.collect(Collectors.toList());
-		populateAnswerChoices(interchanges, answerChoices);
+	private Answer getAnswer(Interchange interchange) {
+		if (studyEngineConfiguration.getReverseQuestionsAndAnswers() != null
+				&& studyEngineConfiguration.getReverseQuestionsAndAnswers()) {
+			String originalQuestionText = interchange.getQuestion().getQuestionText();
+			interchange.getQuestion().setQuestionText(interchange.getAnswer().getAnswerText());
+			interchange.getAnswer().setAnswerText(originalQuestionText);
+		}
+		return interchange.getAnswer();
 	}
 
 	private void addCorrectAnswer(Interchange interchange) {
 		interchange.getAnswerChoices().add(interchange.getAnswer());
 	}
 
-	private void populateAnswerChoices(List<Interchange> interchanges, List<Answer> answerChoices) {
+	private void populateAnswerChoicesRandomly(List<Interchange> interchanges, List<Answer> answerChoices) {
 		for (Interchange interchange : interchanges) {
 			addCorrectAnswer(interchange);
 			Collections.shuffle(answerChoices, new SecureRandom());
@@ -122,6 +122,14 @@ public class StudyBoostEngine {
 		if (currentInterchange != null) {
 			iterator.remove();
 			currentInterchange = getNextInterchange();
+		}
+	}
+
+	public void shuffleInterchanges() {
+		if (interchanges != null && !interchanges.isEmpty()) {
+			Collections.shuffle(interchanges);
+			iterator = interchanges.iterator();
+			getNextInterchange();
 		}
 	}
 }
