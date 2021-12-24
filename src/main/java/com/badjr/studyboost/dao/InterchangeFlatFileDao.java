@@ -75,6 +75,9 @@ public class InterchangeFlatFileDao implements Dao<Interchange> {
 		}
 	}
 
+	/**
+	 * From https://stackoverflow.com/questions/1757065/java-splitting-a-comma-separated-string-but-ignoring-commas-in-quotes/1757107#1757107
+	 */
 	private String[] splitLineByComma(String line) {
 
 		String otherThanQuote = " [^\"] ";
