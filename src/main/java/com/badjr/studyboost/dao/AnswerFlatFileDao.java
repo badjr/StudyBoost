@@ -62,4 +62,8 @@ public class AnswerFlatFileDao implements Dao<Answer> {
 	public void delete(Answer answer) {
 
 	}
+
+	public String[] getPathToFiles() {
+		return pathToFiles;
+	}
 }

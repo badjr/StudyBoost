@@ -1,5 +1,6 @@
 package com.badjr.studyboost;
 
+import com.badjr.studyboost.dao.AnswerFlatFileDao;
 import com.badjr.studyboost.dao.Dao;
 import com.badjr.studyboost.dao.InterchangeFlatFileDao;
 import com.badjr.studyboost.dao.InterchangeInMemoryDao;
@@ -20,13 +21,16 @@ import java.util.Scanner;
 public class StudyBoostCli {
 
 	private Dao<Interchange> interchangeDao;
+	private Dao<Answer> answerDao;
 	private StudyBoostEngine studyBoostEngine;
 	private StudyEngineConfiguration studyEngineConfiguration;
+	private int totalInterchanges;
 
 	public StudyBoostCli(StudyEngineConfiguration studyEngineConfiguration) {
 		studyBoostEngine = new StudyBoostEngine();
 		this.studyEngineConfiguration = studyEngineConfiguration;
 		this.interchangeDao = studyEngineConfiguration.getInterchangeDao();
+		this.answerDao = studyEngineConfiguration.getAdditionalAnswerOptionsDao();
 	}
 
 	public void start() {
@@ -41,12 +45,38 @@ public class StudyBoostCli {
 				case "n" -> {
 					System.out.println("\nStarting new study session.\n");
 					studyBoostEngine.loadStudySession(studyEngineConfiguration);
+					totalInterchanges = studyBoostEngine.getInterchanges().size();
 					studyBoostEngine.shuffleInterchanges();
 					startStudySession(scanner, studyBoostEngine);
 				}
-				case "s" -> {
-					System.out.println("\nEnter path(s) to use for input files.\n");
+				case "c" -> displayConfiguration();
+				case "m" -> {
+					String interchangesSource = getInterchangesSource();
+					if (!interchangesSource.isEmpty()) {
+						System.out.println(interchangesSource);
+					}
+					System.out.print("Enter input files, \"clear\" to clear, or <Enter> for no change: ");
 					setUpInputFiles(scanner);
+					System.out.println();
+
+					String additionalAnswersSource = getAdditionalAnswersSource();
+					if (!additionalAnswersSource.isEmpty()) {
+						System.out.println(additionalAnswersSource);
+					}
+					System.out.print("Enter input files for additional answer options, \"clear\" to clear, or <Enter> for no change: ");
+					setUpAdditionalAnswersInputFiles(scanner);
+					System.out.println();
+
+					if (studyEngineConfiguration.getReverseQuestionsAndAnswers()) {
+						System.out.println("Questions and answers reversed: on");
+					}
+					else {
+						System.out.println("Questions and answers reversed: off");
+					}
+					System.out.print("Reverse questions and answers? Enter (y)es, (n)o, or <Enter> for no change: ");
+					setUpReverseQuestionsAndAnswers(scanner);
+					System.out.println();
+
 				}
 				case "q" -> {
 					scanner.close();
@@ -90,48 +120,163 @@ public class StudyBoostCli {
 		List<String> paths = new ArrayList<>();
 
 		String userLine = scanner.nextLine();
-		String[] userInputtedPaths = userLine.split("\s+");
-		for (String userInputtedPath : userInputtedPaths) {
-			try {
-				Path path = Paths.get(userInputtedPath);
-				if (Files.exists(path)) {
-					paths.add(path.toString());
+		if (userLine.length() > 0) {
+			if ("clear".equals(userLine)) {
+				interchangeDao = new InterchangeInMemoryDao();
+				studyEngineConfiguration.setInterchangeDao(interchangeDao);
+				System.out.println(getInterchangesSource());
+			}
+			else {
+				String[] userInputtedPaths = userLine.split("\s+");
+				for (String userInputtedPath : userInputtedPaths) {
+					try {
+						Path path = Paths.get(userInputtedPath);
+						if (Files.exists(path)) {
+							paths.add(path.toString());
+						}
+						else {
+							System.out.println("Could not find file: " + userInputtedPath);
+						}
+					}
+					catch (InvalidPathException e) {
+						System.out.println("Invalid path: " + userInputtedPath + "; " + e.getMessage());
+					}
 				}
-				else {
-					System.out.println("Could not find file: " + userInputtedPath);
+
+				if (!paths.isEmpty()) {
+					interchangeDao = new InterchangeFlatFileDao(paths.toArray(new String[0]));
+					studyEngineConfiguration.setInterchangeDao(interchangeDao);
+					System.out.println(getInterchangesSource());
 				}
 			}
-			catch (InvalidPathException e) {
-				System.out.println("Invalid path: " + userInputtedPath + "; " + e.getMessage());
+		}
+		System.out.println(getInterchangesSource());
+	}
+
+	private void setUpAdditionalAnswersInputFiles(Scanner scanner) {
+		List<String> paths = new ArrayList<>();
+
+		String userLine = scanner.nextLine();
+		if (userLine.length() > 0) {
+			if ("clear".equals(userLine)) {
+				answerDao = null;
+				studyEngineConfiguration.setAdditionalAnswerOptionsDao(null);
+				System.out.println("Now using no files for additional answer options.");
+			}
+			else {
+				String[] userInputtedPaths = userLine.split("\s+");
+				for (String userInputtedPath : userInputtedPaths) {
+					try {
+						Path path = Paths.get(userInputtedPath);
+						if (Files.exists(path)) {
+							paths.add(path.toString());
+						}
+						else {
+							System.out.println("Could not find file: " + userInputtedPath);
+						}
+					}
+					catch (InvalidPathException e) {
+						System.out.println("Invalid path: " + userInputtedPath + "; " + e.getMessage());
+					}
+				}
+
+				if (!paths.isEmpty()) {
+					answerDao = new AnswerFlatFileDao(paths.toArray(new String[0]));
+					studyEngineConfiguration.setAdditionalAnswerOptionsDao(answerDao);
+					System.out.println(getAdditionalAnswersSource());
+				}
+			}
+		}
+		System.out.println(getAdditionalAnswersSource());
+	}
+
+	private void setUpReverseQuestionsAndAnswers(Scanner scanner) {
+		String userInput;
+
+		while (true) {
+			userInput = scanner.nextLine();
+			if (userInput.trim().length() > 0) {
+				if (userInput.equalsIgnoreCase("y") || userInput.equalsIgnoreCase("yes")) {
+					studyEngineConfiguration.setReverseQuestionsAndAnswers(true);
+					System.out.println("Questions and answers will be reversed.");
+					break;
+				}
+				else if (userInput.equalsIgnoreCase("n") || userInput.equalsIgnoreCase("no")) {
+					studyEngineConfiguration.setReverseQuestionsAndAnswers(false);
+					System.out.println("Questions and answers will not be reversed.");
+					break;
+				}
+				else {
+					System.out.println("Please enter (y)es, (n)o, or <Enter>.");
+				}
+			}
+			else {
+				System.out.printf("Questions and answers reversed: %s\n", studyEngineConfiguration.getReverseQuestionsAndAnswers() ? "on" : "off");
+				break;
 			}
 		}
 
-		if (!paths.isEmpty()) {
-			interchangeDao = new InterchangeFlatFileDao(paths.toArray(new String[0]));
+	}
+
+	private void displayConfiguration() {
+		System.out.println();
+		System.out.println("Configuration:");
+		String interchangesSource = getInterchangesSource();
+		String additionalAnswersSource = getAdditionalAnswersSource();
+		if (!interchangesSource.isEmpty()) {
+			System.out.println("> " + interchangesSource);
 		}
-		else {
-			interchangeDao = new InterchangeInMemoryDao();
+		if (!additionalAnswersSource.isEmpty()) {
+			System.out.println("> " + additionalAnswersSource);
 		}
-		studyEngineConfiguration.setInterchangeDao(interchangeDao);
+		System.out.printf(
+			"""
+			> Questions and answers reversed: %b
+			""", studyEngineConfiguration.getReverseQuestionsAndAnswers()
+		);
+		System.out.println();
 	}
 
 	private void displayMainPrompt() {
-		if (interchangeDao instanceof InterchangeFlatFileDao) {
-			String[] pathToFiles = ((InterchangeFlatFileDao) interchangeDao).getPathToFiles();
-			System.out.println("Using input file" + (pathToFiles.length > 1 ? "s" : "") + ": " + Arrays.toString(pathToFiles));
-		}
-		else if (interchangeDao instanceof InterchangeInMemoryDao) {
-			System.out.println("Using default questions.");
-		}
+		System.out.println(getInterchangesSource());
 		System.out.println(
 				"""
 				(n) Start New Study Session
-				(s) Select Input File(s)
+				(c) Display Configuration
+				(m) Modify Configuration
 				(q) Quit
 				""");
 	}
 
+	private String getInterchangesSource() {
+		String interchangesSource;
+		if (interchangeDao instanceof InterchangeFlatFileDao) {
+			String[] pathToFiles = ((InterchangeFlatFileDao) interchangeDao).getPathToFiles();
+			interchangesSource = "Using input file" + (pathToFiles.length > 1 ? "s" : "") + ": " + Arrays.toString(pathToFiles);
+		}
+		else if (interchangeDao instanceof InterchangeInMemoryDao) {
+			interchangesSource = "No input files configured. Using default questions.";
+		}
+		else {
+			interchangesSource = "";
+		}
+		return interchangesSource;
+	}
+	
+	private String getAdditionalAnswersSource() {
+		String additionalAnswerOptionsSource;
+		if (answerDao instanceof AnswerFlatFileDao) {
+			String[] pathToFiles = ((AnswerFlatFileDao) answerDao).getPathToFiles();
+			additionalAnswerOptionsSource = "Additional answer options pulled from the following file" + (pathToFiles.length > 1 ? "s" : "") + ": " + Arrays.toString(pathToFiles);
+		}
+		else {
+			additionalAnswerOptionsSource = "No files configured for additional answer options.";
+		}
+		return additionalAnswerOptionsSource;
+	}
+
 	private void displayNextInterchange(Interchange interchange) {
+		System.out.printf("(%d of %d): ", (totalInterchanges - studyBoostEngine.getInterchanges().size() + 1), totalInterchanges);
 		System.out.println(interchange.getQuestion().getQuestionText());
 
 		List<Answer> answerChoices = interchange.getAnswerChoices();
