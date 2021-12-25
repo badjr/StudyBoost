@@ -254,20 +254,4 @@ public class StudyBoostEngineTest {
 
 	}
 
-	private List<Interchange> createInterchanges(String[] questions, String[] answers, Integer maxWrongAnswers) {
-		List<Interchange> interchanges = new ArrayList<>();
-		for (int i = 0; i < questions.length; i++) {
-			Interchange interchange = new Interchange();
-			interchange.setMaxWrongAnswers(maxWrongAnswers);
-			Question question = new Question();
-			question.setQuestionText(questions[i]);
-			interchange.setQuestion(question);
-			Answer answer = new Answer();
-			answer.setAnswerText(answers[i]);
-			interchange.setAnswer(answer);
-			interchanges.add(interchange);
-		}
-		return interchanges;
-	}
-
 }
